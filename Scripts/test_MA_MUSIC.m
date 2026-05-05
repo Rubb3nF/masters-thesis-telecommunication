@@ -10,7 +10,7 @@
 clear; clc; close all;
 %% Scenario Selection & General Configuration
 % Choose scenario: 1 ('APPEARANCE'), 2 ('OVERLAP'), or 3 ('IDEAL')
-scenario_mode = 1; 
+scenario_mode = 3; 
 
 % Array & System Setup
 M = 16; N = 16; fc = 1e9; d = 0.5; c = 3e8;
@@ -32,7 +32,7 @@ end
 array_vca = UniformPlanarArray(M, N, d, d, fc, c);
 signal_model = SignalModel(array_vca);
 
-estimator = motion_MUSIC3(array_vca);
+estimator = motion_MUSIC_opt(array_vca);
 estimator.history = {};   
 
 %% Trajectory Generation (Scenario Switch) 

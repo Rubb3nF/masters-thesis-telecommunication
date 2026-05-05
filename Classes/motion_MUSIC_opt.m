@@ -88,7 +88,7 @@ classdef motion_MUSIC_opt < handle
                 
                 % Adaptive radius computation
                 [r_thetas(k), r_phis(k)] = obj.calculateAdaptiveRadii(...
-                    prev2(k,1), prev2(k,2), prev1(k,1), prev1(k,2), pred_t(k), safety_guard_rad);
+                    prev2(k,1), prev2(k,2), prev1(k,1), prev1(k,2),pred_t(k), pred_p(k), pred_t(k), safety_guard_rad);
             end
             
             obj.last_pred_theta = pred_t; obj.last_pred_phi = pred_p;
@@ -636,32 +636,37 @@ classdef motion_MUSIC_opt < handle
             phi_next   = atan2(v3(2), v3(1));
         end
         
-        function [r_theta, r_phi] = calculateAdaptiveRadii(obj, theta_prev, phi_prev, theta_curr, phi_curr, theta_curr_rad, grid_step)
-
+        function [r_theta, r_phi] = calculateAdaptiveRadii(obj, theta_prev2, phi_prev2, theta_prev, phi_prev, theta_curr, phi_curr, theta_curr_rad, grid_step)
             % Description: Computes dynamic search radii proportional to spatial velocity.
             %
             % Inputs:
-            %   theta_prev, phi_prev - Previous angle state
-            %   theta_curr, phi_curr - Current angle state
-            %   theta_curr_rad       - Current reference elevation
-            %   grid_step            - Precision grid step configuration
+            %   theta_prev2, phi_prev2 - Angle states at t-2
+            %   theta_prev, phi_prev   - Previous angle state
+            %   theta_curr, phi_curr   - Current angle state
+            %   theta_curr_rad         - Current reference elevation
+            %   grid_step              - Precision grid step configuration
             %
             % Outputs:
             %   r_theta - Computed search radius for elevation
             %   r_phi   - Computed search radius for azimuth
-
             K_safety = 1;      % Velocity multiplier margin factor
+            beta = 0.7;        % Acceleration weighting factor
             R_min_base = 1*pi/180;    % Minimum allowed angular expansion
             
             % Compute baseline absolute variation in elevation
             v_theta = abs(theta_curr - theta_prev);
+            v_theta_prev = abs(theta_prev - theta_prev2);
+            a_theta = abs(v_theta - v_theta_prev);
             
             % Process variation in azimuth, counteracting discontinuous jumps across +/- 180
             diff_phi = phi_curr - phi_prev;
             v_phi = abs(mod(diff_phi + pi, 2*pi) - pi); 
+            diff_phi_prev = phi_prev - phi_prev2;
+            v_phi_prev = abs(mod(diff_phi_prev + pi, 2*pi) - pi);
+            a_phi = abs(v_phi - v_phi_prev);
         
             % Apply expansions
-            r_theta = v_theta * K_safety;
+            r_theta = (v_theta + beta * a_theta) * K_safety;
             if r_theta < (R_min_base + grid_step)
                 r_theta = R_min_base + grid_step;
             end
@@ -670,7 +675,7 @@ classdef motion_MUSIC_opt < handle
             % Adjusts naturally large physical coverage parameters near polar extremes
             geom_factor = 1 / max(sin(theta_curr_rad), 0.1); 
             
-            r_phi = v_phi * K_safety;
+            r_phi = (v_phi + beta * a_phi) * K_safety;
             
             if r_phi < ((R_min_base * geom_factor) + grid_step)
                 r_phi = (R_min_base * geom_factor) + grid_step;
