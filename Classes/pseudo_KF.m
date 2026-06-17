@@ -281,15 +281,18 @@ classdef pseudo_KF
             R_k = diag([R_th, R_ph]);
         
             %%  UPLKF Bias Correction
-            % Derivatives with respect to angles
-            J_theta = [cos(theta_k), sin(theta_k), 0, 0, 0, 0];
-            J_phi   = [-cos(phi_k)*cos(theta_k), -cos(phi_k)*sin(theta_k), -sin(phi_k), 0, 0, 0];
-        
-            % Bias correction terms
-            C_th = sigma_angles(1) * (J_theta * P_pred * J_theta');
-            C_ph = sigma_angles(2) * (J_phi   * P_pred * J_phi');
-        
-            R_unbiased = R_k + diag([C_th, C_ph]);
+            % Derivates with respect to the angles
+            J_full_theta = [ cos(theta_k),            sin(theta_k),           0, 0, 0, 0;
+                             sin(phi_k)*sin(theta_k), -sin(phi_k)*cos(theta_k), 0, 0, 0, 0 ];
+            
+            J_full_phi   = [ 0,                       0,                      0,           0, 0, 0;
+                             -cos(phi_k)*cos(theta_k), -cos(phi_k)*sin(theta_k), -sin(phi_k), 0, 0, 0 ];
+            
+            % Compensation term
+            C_k = sigma_angles(1) * (J_full_theta * P_pred * J_full_theta') + ...
+                  sigma_angles(2) * (J_full_phi   * P_pred * J_full_phi');
+            
+            R_unbiased = R_k + C_k;
         
             %% Update Step
             S_k = H_k * P_pred * H_k' + R_unbiased;
